@@ -66,8 +66,16 @@ def get_subtitles():
             subtitles_content = f.read()
 
         if sub_format == 'txt':
-            subtitles = re.sub(r'(WEBVTT.*?\n\n)|(\d{2}:\d{2}:\d{2}[\.,]\d{3} --> .*?\n)|(<.*?>)', '', subtitles_content, flags=re.DOTALL)
-            subtitles = re.sub(r'\n+', '\n', subtitles).strip()
+            subtitles_content = re.sub(r'(WEBVTT.*?\n\n)|(\d{2}:\d{2}:\d{2}[\.,]\d{3} --> .*?\n)|(<.*?>)', '', subtitles_content, flags=re.DOTALL)
+            subtitles_lines = subtitles_content.strip().split('\n')
+            seen = set()
+            subtitles_unique = []
+            for line in subtitles_lines:
+                line_clean = line.strip()
+                if line_clean and line_clean not in seen:
+                    seen.add(line_clean)
+                    subtitles_unique.append(line_clean)
+            subtitles = '\n'.join(subtitles_unique)
         else:
             subtitles = subtitles_content
 
