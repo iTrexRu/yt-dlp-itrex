@@ -42,7 +42,7 @@ def get_subtitles():
         "--skip-download",
         "--write-auto-sub",
         "--sub-lang", lang,
-        "--sub-format", "vtt/srt",
+        "--sub-format", "txt",
     ]
     if cookies_file:
         command.extend(["--cookies", cookies_file])
