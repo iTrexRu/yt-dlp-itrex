@@ -23,8 +23,19 @@ def get_subtitles():
         return jsonify({"error": "URL is required"}), 400
 
     # Имя файла для субтитров
-    output_file = "/tmp/subtitles"  # Используем /tmp для временных файлов
+    output_file = "/tmp/subtitles"
     
+    # Создаем cookies.txt из переменной окружения COOKIES
+    cookies_content = os.getenv("COOKIES")
+    cookies_file = "/tmp/cookies.txt"
+    if cookies_content:
+        with open(cookies_file, "w") as f:
+            f.write(cookies_content)
+        logger.debug(f"Created cookies file: {cookies_file}")
+    else:
+        logger.warning("COOKIES environment variable not found, proceeding without cookies")
+        cookies_file = None
+
     # Команда yt-dlp для скачивания субтитров
     command = [
         "yt-dlp",
@@ -32,10 +43,10 @@ def get_subtitles():
         "--write-auto-sub",
         "--sub-lang", lang,
         "--sub-format", "vtt/srt",
-        "--cookies", "cookies.txt",  # Добавляем cookies
-        "--output", output_file,
-        video_url
     ]
+    if cookies_file:
+        command.extend(["--cookies", cookies_file])
+    command.extend(["--output", output_file, video_url])
     
     logger.debug(f"Executing command: {' '.join(command)}")
     
@@ -65,7 +76,9 @@ def get_subtitles():
         
         # Удаляем временный файл
         os.remove(subtitle_file)
-        logger.debug(f"Deleted subtitle file: {subtitle_file}")
+        if cookies_file and os.path.exists(cookies_file):
+            os.remove(cookies_file)
+        logger.debug(f"Deleted temporary files")
         
         return jsonify({"subtitles": subtitles})
     
@@ -78,5 +91,5 @@ def get_subtitles():
         return jsonify({"error": "Server error", "details": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))  # Railway использует переменную PORT
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
