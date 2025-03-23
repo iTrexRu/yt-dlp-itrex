@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 import subprocess
 import os
 import logging
+import re
 
 app = Flask(__name__)
 
@@ -42,7 +43,8 @@ def get_subtitles():
         "--skip-download",
         "--write-auto-sub",
         "--sub-lang", lang,
-        "--sub-format", "vtt/srt",
+        "--sub-format", "srt",  # Скачиваем в формате .srt
+        "--convert-subs", "srt",  # Убедимся, что субтитры в .srt
     ]
     if cookies_file:
         command.extend(["--cookies", cookies_file])
@@ -57,30 +59,41 @@ def get_subtitles():
         logger.debug(f"yt-dlp stderr: {result.stderr}")
         
         # Читаем субтитры из файла
-        subtitle_file_vtt = f"{output_file}.{lang}.vtt"
-        subtitle_file_srt = f"{output_file}.{lang}.srt"
-        
-        subtitle_file = None
-        if os.path.exists(subtitle_file_vtt):
-            subtitle_file = subtitle_file_vtt
-        elif os.path.exists(subtitle_file_srt):
-            subtitle_file = subtitle_file_srt
-        else:
-            logger.error(f"Subtitle file not found: {subtitle_file_vtt} or {subtitle_file_srt}")
+        subtitle_file = f"{output_file}.{lang}.srt"
+        if not os.path.exists(subtitle_file):
+            logger.error(f"Subtitle file not found: {subtitle_file}")
             return jsonify({"error": "Subtitles not found"}), 404
 
+        # Читаем .srt файл и извлекаем текст
         with open(subtitle_file, 'r', encoding='utf-8') as f:
-            subtitles = f.read()
+            srt_content = f.read()
+
+        # Парсим .srt и извлекаем чистый текст
+        # Удаляем таймкоды, номера строк и пустые строки
+        lines = srt_content.split('\n')
+        clean_text = []
+        for line in lines:
+            # Пропускаем пустые строки, номера и таймкоды
+            if not line.strip():
+                continue
+            if line.isdigit():
+                continue
+            if '-->' in line:
+                continue
+            clean_text.append(line.strip())
+
+        # Объединяем строки в текст
+        subtitles_text = ' '.join(clean_text)
+
+        logger.debug(f"Cleaned subtitles text: {subtitles_text[:100]}...")
         
-        logger.debug(f"Subtitles content: {subtitles[:100]}...")
-        
-        # Удаляем временный файл
+        # Удаляем временные файлы
         os.remove(subtitle_file)
         if cookies_file and os.path.exists(cookies_file):
             os.remove(cookies_file)
         logger.debug(f"Deleted temporary files")
         
-        return jsonify({"subtitles": subtitles})
+        return jsonify({"subtitles": subtitles_text})
     
     except subprocess.CalledProcessError as e:
         logger.error(f"yt-dlp failed: {e}")
