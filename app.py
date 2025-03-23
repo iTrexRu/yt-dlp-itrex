@@ -37,13 +37,22 @@ def get_subtitles():
         cookies_file = None
 
     # Команда yt-dlp для скачивания субтитров
+#    command = [
+ #       "yt-dlp",
+  #      "--skip-download",
+   #     "--write-auto-sub",
+    #    "--sub-lang", lang,
+     #   "--sub-format", "txt",
+    #]
     command = [
-        "yt-dlp",
-        "--skip-download",
-        "--write-auto-sub",
-        "--sub-lang", lang,
-        "--sub-format", "txt",
-    ]
+    "yt-dlp",
+    "--skip-download",
+    "--write-auto-sub",
+    "--sub-lang", lang,
+    "--sub-format", "txt",
+    "--convert-subs", "txt",
+]
+
     if cookies_file:
         command.extend(["--cookies", cookies_file])
     command.extend(["--output", output_file, video_url])
@@ -57,20 +66,29 @@ def get_subtitles():
         logger.debug(f"yt-dlp stderr: {result.stderr}")
         
         # Читаем субтитры из файла
-        subtitle_file_vtt = f"{output_file}.{lang}.vtt"
-        subtitle_file_srt = f"{output_file}.{lang}.srt"
+        #subtitle_file_vtt = f"{output_file}.{lang}.vtt"
+        #subtitle_file_srt = f"{output_file}.{lang}.srt"
+        #
+        #subtitle_file = None
+        #if os.path.exists(subtitle_file_vtt):
+        #    subtitle_file = subtitle_file_vtt
+        #elif os.path.exists(subtitle_file_srt):
+        #    subtitle_file = subtitle_file_srt
         
-        subtitle_file = None
-        if os.path.exists(subtitle_file_vtt):
-            subtitle_file = subtitle_file_vtt
-        elif os.path.exists(subtitle_file_srt):
-            subtitle_file = subtitle_file_srt
-        else:
-            logger.error(f"Subtitle file not found: {subtitle_file_vtt} or {subtitle_file_srt}")
-            return jsonify({"error": "Subtitles not found"}), 404
+        subtitle_file_txt = f"{output_file}.{lang}.txt"
+    if not os.path.exists(subtitle_file_txt):
+        logger.error(f"Subtitle file not found: {subtitle_file_txt}")
+        return jsonify({"error": "Subtitles not found"}), 404
 
-        with open(subtitle_file, 'r', encoding='utf-8') as f:
-            subtitles = f.read()
+    with open(subtitle_file_txt, 'r', encoding='utf-8') as f:
+        subtitles = f.read()
+
+    #else:
+     #       logger.error(f"Subtitle file not found: {subtitle_file_vtt} or {subtitle_file_srt}")
+      #      return jsonify({"error": "Subtitles not found"}), 404
+#
+ #       with open(subtitle_file, 'r', encoding='utf-8') as f:
+  #          subtitles = f.read()
         
         logger.debug(f"Subtitles content: {subtitles[:100]}...")
         
