@@ -16,6 +16,11 @@ def get_subtitles():
     data = request.get_json()
     video_url = data.get('url')
     lang = data.get('lang', 'ru')
+    sub_format = data.get('format', 'vtt').lower()
+
+    if sub_format not in ['vtt', 'srt', 'txt']:
+        logger.error("Invalid format specified")
+        return jsonify({"error": "Invalid format specified. Use 'vtt', 'srt', or 'txt'."}), 400
 
     if not video_url:
         logger.error("URL is required")
@@ -38,7 +43,7 @@ def get_subtitles():
         "--skip-download",
         "--write-auto-sub",
         "--sub-lang", lang,
-        "--sub-format", "vtt",
+        "--sub-format", "vtt/srt",
     ]
     if cookies_file:
         command.extend(["--cookies", cookies_file])
@@ -49,18 +54,22 @@ def get_subtitles():
     try:
         subprocess.run(command, check=True, capture_output=True, text=True)
 
-        subtitle_file = f"{output_file}.{lang}.vtt"
+        subtitle_file_vtt = f"{output_file}.{lang}.vtt"
+        subtitle_file_srt = f"{output_file}.{lang}.srt"
+
+        subtitle_file = subtitle_file_vtt if os.path.exists(subtitle_file_vtt) else subtitle_file_srt
         if not os.path.exists(subtitle_file):
             logger.error(f"Subtitle file not found: {subtitle_file}")
             return jsonify({"error": "Subtitles not found"}), 404
 
         with open(subtitle_file, 'r', encoding='utf-8') as f:
-            vtt_content = f.read()
+            subtitles_content = f.read()
 
-        subtitles = re.sub(r'WEBVTT.*?\n\n', '', vtt_content, flags=re.DOTALL)
-        subtitles = re.sub(r'\d{2}:\d{2}:\d{2}\.\d{3} --> .*?\n', '', subtitles)
-        subtitles = re.sub(r'<.*?>', '', subtitles)
-        subtitles = re.sub(r'\n+', '\n', subtitles).strip()
+        if sub_format == 'txt':
+            subtitles = re.sub(r'(WEBVTT.*?\n\n)|(\d{2}:\d{2}:\d{2}[\.,]\d{3} --> .*?\n)|(<.*?>)', '', subtitles_content, flags=re.DOTALL)
+            subtitles = re.sub(r'\n+', '\n', subtitles).strip()
+        else:
+            subtitles = subtitles_content
 
         os.remove(subtitle_file)
         if cookies_file and os.path.exists(cookies_file):
